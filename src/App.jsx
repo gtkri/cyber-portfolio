@@ -17,6 +17,7 @@ import {
   Terminal,
   Copy,
   Check,
+  Download,
 } from "lucide-react";
 
 /* ════════════════════════════════════════════════════════════════
@@ -169,12 +170,6 @@ const CERTIFICATIONS = [
     detail: "Hands-on penetration testing certification — currently preparing via HackTheBox and personal lab.",
   },
 ];
-
-const PGP_KEY = `-----BEGIN PGP PUBLIC KEY BLOCK-----
-
-[Paste your full PGP public key block here]
-
------END PGP PUBLIC KEY BLOCK-----`;
 
 /* ════════════════════════════════════════════════════════════════
    UTILITY HOOKS
@@ -580,11 +575,27 @@ function Certifications() {
 function PGPBlock() {
   const [show, setShow] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [pgpKey, setPgpKey] = useState("");
   const preRef = useRef(null);
+
+  useEffect(() => {
+    const fetchPGPKey = async () => {
+      try {
+        const response = await fetch("/krishna_public_key.asc");
+        if (response.ok) {
+          const text = await response.text();
+          setPgpKey(text);
+        }
+      } catch (error) {
+        console.error("Error loading PGP key:", error);
+      }
+    };
+    fetchPGPKey();
+  }, []);
 
   const handleCopy = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(PGP_KEY);
+      await navigator.clipboard.writeText(pgpKey);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -596,24 +607,45 @@ function PGPBlock() {
         window.getSelection()?.addRange(range);
       }
     }
-  }, []);
+  }, [pgpKey]);
+
+  const handleDownload = useCallback(() => {
+    const element = document.createElement("a");
+    const file = new Blob([pgpKey], { type: "text/plain" });
+    element.href = URL.createObjectURL(file);
+    element.download = "pgp-public-key.asc";
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+    URL.revokeObjectURL(element.href);
+  }, [pgpKey]);
 
   return (
     <div className="mt-6">
-      <button
-        onClick={() => setShow((prev) => !prev)}
-        className="inline-flex items-center gap-2 rounded-md border border-border-subtle px-4 py-2 font-mono text-xs text-text-secondary transition-all duration-200 hover:border-accent hover:text-accent"
-        aria-expanded={show}
-        aria-controls="pgp-block"
-      >
-        <Lock size={14} aria-hidden="true" />
-        {show ? "Hide" : "Show"} PGP Public Key
-        {show ? (
-          <ChevronUp size={14} aria-hidden="true" />
-        ) : (
-          <ChevronDown size={14} aria-hidden="true" />
-        )}
-      </button>
+      <div className="flex flex-wrap gap-3">
+        <button
+          onClick={() => setShow((prev) => !prev)}
+          className="inline-flex items-center gap-2 rounded-md border border-border-subtle px-4 py-2 font-mono text-xs text-text-secondary transition-all duration-200 hover:border-accent hover:text-accent"
+          aria-expanded={show}
+          aria-controls="pgp-block"
+        >
+          <Lock size={14} aria-hidden="true" />
+          {show ? "Hide" : "Show"} PGP Public Key
+          {show ? (
+            <ChevronUp size={14} aria-hidden="true" />
+          ) : (
+            <ChevronDown size={14} aria-hidden="true" />
+          )}
+        </button>
+        <button
+          onClick={handleDownload}
+          className="inline-flex items-center gap-2 rounded-md border border-border-subtle px-4 py-2 font-mono text-xs text-text-secondary transition-all duration-200 hover:border-accent hover:text-accent"
+          aria-label="Download PGP key"
+        >
+          <Download size={14} aria-hidden="true" />
+          Download Key
+        </button>
+      </div>
 
       {show && (
         <div
@@ -625,27 +657,36 @@ function PGPBlock() {
               <Terminal size={12} aria-hidden="true" />
               pgp-public-key.asc
             </span>
-            <button
-              onClick={handleCopy}
-              className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs text-text-muted transition-colors hover:text-accent"
-              aria-label="Copy PGP key to clipboard"
-            >
-              {copied ? (
-                <>
-                  <Check size={12} aria-hidden="true" /> Copied
-                </>
-              ) : (
-                <>
-                  <Copy size={12} aria-hidden="true" /> Copy
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleDownload}
+                className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs text-text-muted transition-colors hover:text-accent"
+                aria-label="Download PGP key"
+              >
+                <Download size={12} aria-hidden="true" /> Download
+              </button>
+              <button
+                onClick={handleCopy}
+                className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs text-text-muted transition-colors hover:text-accent"
+                aria-label="Copy PGP key to clipboard"
+              >
+                {copied ? (
+                  <>
+                    <Check size={12} aria-hidden="true" /> Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy size={12} aria-hidden="true" /> Copy
+                  </>
+                )}
+              </button>
+            </div>
           </div>
           <pre
             ref={preRef}
             className="overflow-x-auto px-4 py-4 font-mono text-xs leading-relaxed text-text-secondary"
           >
-            {PGP_KEY}
+            {pgpKey}
           </pre>
         </div>
       )}
